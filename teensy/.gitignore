@@ -1,0 +1,6 @@
+teensy3/
+
+*.d
+*.o
+*.hex
+*.elf
