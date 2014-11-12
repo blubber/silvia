@@ -79,6 +79,7 @@ all: upload
 
 $(TARGET).elf: $(OBJS) teensy3/mk20dx128.ld
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+	let NEW_VERSION=`awk  '/ VERSION / { print $$3; }' version.h`+1 && sed -i.bak -e "s/define VERSION [0-9][0-9]*/define VERSION $$NEW_VERSION/" version.h
 
 %.hex: %.elf
 	$(SIZE) $<
