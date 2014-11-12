@@ -70,7 +70,7 @@ C_FILES := $(wildcard *.c)
 CPP_FILES := $(wildcard *.cpp)
 #OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o)
 
-OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(CORE_OBJ_FILES:.c=.o)
+OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(CORE_OBJ_FILES:.c=.o) Adafruit-MAX31855-library/Adafruit_MAX31855.o
 
 
 # the actual makefile rules (all .o files built by GNU make's default implicit rules)
@@ -98,10 +98,11 @@ clean:
 dist-clean: clean
 	rm -rf teensy3/
 
-teensy-core:
-	test -d teensy3/ || mkdir teensy3
+teensy3:
+	mkdir teensy3
 	cp -rf $(ARDUINOPATH)hardware/teensy/cores/teensy3/* \
 		teensy3/
+	cp -rf $(ARDUINOPATH)libraries/SPI/* teensy3/
 	rm -rf teensy3/Makefile teensy3/main*
 
 teensy-core/%.o: %.c
@@ -110,3 +111,5 @@ teensy-core/%.o: %.c
 teensy-core/%.o: %.cpp
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
+Adafruit-MAX31855-library/%.o: %.cpp
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
