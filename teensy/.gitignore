@@ -4,3 +4,6 @@ teensy3/
 *.o
 *.hex
 *.elf
+
+version.h.bak
+
