@@ -2,7 +2,7 @@
 import functools
 
 import numpy as np
-from scipy.integrate import odeint
+from scipy.integrate import odeint, ode
 import matplotlib.pyplot as plt
 
 import system
@@ -51,6 +51,23 @@ class ThresholdController (object):
     def __call__(self, t, T):
         return system.heater_power * (T < self.setpoint)
 
+# -------------------------------------------------------------------------
+# Solver for stiff systems
+
+
+def odebdf(model, y0, t):
+    result = np.zeros((len(t), len(y0)))
+    sys = lambda y, t: model(t, y) # bdf requires swapped arguments
+    r = ode(sys).set_integrator('zvode', method='bdf')
+    r.set_initial_value(y0, t[0])
+    result[0] = y0
+    step = 1
+    while r.successful() and (step < len(t)):
+        r.integrate(t[step])
+        result[step] = np.real(r.y)
+        step += 1
+    return result
+
 
 # -------------------------------------------------------------------------
 # Simulate and plot
@@ -62,10 +79,11 @@ y0 = [yW, yM]
 
 t = np.arange(0, 1600, 0.05)
 
-# controller = PidController(100, 0.025, 0.00001, 0)
-controller = ThresholdController(100)
+controller = PidController(100, 0.025, 0.00001, 0)
+# controller = ThresholdController(100)
 model = functools.partial(system.model, controller)
 result, info_dict = odeint(model, y0, t, full_output=True)
+# result = odebdf(model, y0, t)
 
 plt.figure()
 
