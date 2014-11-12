@@ -11,6 +11,7 @@ import system
 # -------------------------------------------------------------------------
 # Controller implementations
 
+
 class PidController (object):
 
     def __init__(self, setpoint, Kp, Ki, Kd):
@@ -42,6 +43,15 @@ class PidController (object):
         return system.heater_power * min(1, max(0, output))
 
 
+class ThresholdController (object):
+
+    def __init__(self, setpoint):
+        self.setpoint = setpoint
+
+    def __call__(self, t, T):
+        return system.heater_power * (T < self.setpoint)
+
+
 # -------------------------------------------------------------------------
 # Simulate and plot
 
@@ -52,7 +62,8 @@ y0 = [yW, yM]
 
 t = np.arange(0, 1600, 0.05)
 
-controller = PidController(100, 0.025, 0.00001, 0)
+# controller = PidController(100, 0.025, 0.00001, 0)
+controller = ThresholdController(100)
 model = functools.partial(system.model, controller)
 result, info_dict = odeint(model, y0, t, full_output=True)
 
