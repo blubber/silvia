@@ -2,6 +2,7 @@
 #include "WProgram.h"
 #include "Adafruit-MAX31855-library/Adafruit_MAX31855.h"
 
+#include "controller.h"
 #include "version.h"
 
 
@@ -10,11 +11,14 @@
 #define SETPOINT         100
 
 
+#define CYCLE            500
+
+
 
 // --------------------------------------------------------------------------
 // PID controller parameters.
 #define KP               0.025
-#define KI               0.0001
+#define KI               0
 #define KD               0
 
 
@@ -36,17 +40,12 @@ double read_sensor (Adafruit_MAX31855 thermocouple) {
 }
 
 extern "C" int main(void) {
-    int      cycle;
-    uint32_t last_millis, now;
-    double   dt             = 0;
-    double   previous_error = 0;
-    double   error          = 0;
-    double   output         = 0;
-    double   derivative     = 0;
-    double   integral       = 0;
-    double   measured_value;
+    uint32_t last_millis = 0, now, cycle;
+    float    output, T, dt;
+    int      heating = 1;
 
     Adafruit_MAX31855 thermocouple(THERMO_CLK, THERMO_CS, THERMO_DO);
+    ControllerContext ctx = controller_new(SETPOINT, KP, KI, KP);
 
 
     Serial.begin(9600);
@@ -56,45 +55,38 @@ extern "C" int main(void) {
     digitalWrite(HEATER_PIN, LOW);
     digitalWrite(13, LOW);
     
-	while (1) {
+	for (int i = 4; i < 5; i++) {
         now = millis();
-        dt = (now - last_millis) / (double)1000;
+
+        if (now >= (1800 * 1000)) {
+            heating = 0;
+        }
+        dt = (float)now - (float)last_millis;
         last_millis = now;
+        T = read_sensor(thermocouple);
+        output = controller_power(&ctx, dt, T);
+        cycle = (uint32_t)(CYCLE * (output > 1 ? 1 : (output < 0 ? 0 : output)));
 
-        measured_value = read_sensor(thermocouple);
-
-        if (isnan(measured_value)) {
-            measured_value = 250;
+        if (i == 4) {
+            i = 0;
+            Serial.println(" \tOn\tT\tOut\tdt\tCycle");
         }
 
-        error = SETPOINT - measured_value;
-        integral = integral + error * dt;
-
-        if (dt == 0) {
-            derivative = 0;
-        } else {
-            derivative = (error - previous_error) / dt;
-        }
-
-        output = KP * error + KI * integral + KD * derivative;
-        previous_error = error;
-
-        cycle = (int)(500 * constrain(output, 0, 1));
-        
-        Serial.print(VERSION); Serial.print(" ");
-        Serial.print(measured_value); Serial.print(" ");
-        Serial.print(output); Serial.print(" ");
-        Serial.print(integral); Serial.print(" ");
-        Serial.print(error); Serial.print(" ");
-        Serial.print(dt); Serial.print(" ");
+        Serial.print(VERSION); Serial.print("\t");
+        Serial.print(heating); Serial.print("\t");
+        Serial.print(T); Serial.print("\t");
+        Serial.print(output); Serial.print("\t");
+        Serial.print(dt); Serial.print("\t");
         Serial.println(cycle);
-        
-        digitalWrite(HEATER_PIN, HIGH);
-        digitalWrite(13, HIGH);
+
+        if (heating == 1) {
+            digitalWrite(HEATER_PIN, HIGH);
+            digitalWrite(13, HIGH);
+        }
         delay(cycle);
 
-        digitalWrite(HEATER_PIN, LOW);
-        digitalWrite(13, LOW);
-        delay(500 - cycle);
+        // digitalWrite(HEATER_PIN, LOW);
+        // digitalWrite(13, LOW);
+        delay(CYCLE - cycle);
     }
 }
