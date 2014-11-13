@@ -13,6 +13,21 @@ import system
 # -------------------------------------------------------------------------
 # Controller implementations
 
+class Controller (object):
+
+    def __init__(self, setpoint):
+        self.setpoint = setpoint
+        self.power = []
+
+    def heater_power(self, t, T):
+        raise NotImplementedError()
+
+    def __call__(self, t, T):
+        power = self.heater_power(t, T)
+        self.power.append((t, power))
+        return power
+
+
 class ControllerContext (ctypes.Structure):
     _fields_ = [
         ('setpoint', ctypes.c_float),
@@ -24,14 +39,14 @@ class ControllerContext (ctypes.Structure):
     ]
 
 
-class RealPidController (object):
+class RealPidController (Controller):
 
     def __init__(self, setpoint, Kp, Ki, Kd):
+        super().__init__(setpoint)
         self.lib = ctypes.cdll.LoadLibrary('libcontroller.so')
         self.lib.controller_new.restype = ControllerContext
         self.lib.controller_power.restype = ctypes.c_float
         self._last_t = 0
-        self.power = []
 
         self._ctx = self.lib.controller_new(
             ctypes.c_float(setpoint),
@@ -39,7 +54,7 @@ class RealPidController (object):
             ctypes.c_float(Ki),
             ctypes.c_float(Kd))
 
-    def __call__(self, t, T):
+    def heater_power(self, t, T):
         dt = int(1000 * (t - self._last_t))
         self._last_t = t
 
@@ -47,15 +62,13 @@ class RealPidController (object):
             ctypes.byref(self._ctx),
             ctypes.c_long(dt), ctypes.c_float(T))
 
-        power = system.heater_power * min(1, max(0, ratio))
-        self.power.append((t, power))
-        return power
+        return system.heater_power * min(1, max(0, ratio))
 
 
-class PidController (object):
+class PidController (Controller):
 
     def __init__(self, setpoint, Kp, Ki, Kd):
-        self.setpoint = setpoint
+        super().__init__(setpoint)
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
@@ -63,7 +76,7 @@ class PidController (object):
         self._integral = 0
         self._previous_error = 0
 
-    def __call__(self, t, T):
+    def heater_power(self, t, T):
         dt = t - self._previous_t
         self._previous_t = t
 
@@ -85,12 +98,12 @@ class PidController (object):
         return system.heater_power * min(1, max(0, output))
 
 
-class ThresholdController (object):
+class ThresholdController (Controller):
 
     def __init__(self, setpoint):
-        self.setpoint = setpoint
+        super().__init__(setpoint)
 
-    def __call__(self, t, T):
+    def heater_power(self, t, T):
         return system.heater_power * (T < self.setpoint)
 
 # -------------------------------------------------------------------------
@@ -112,6 +125,22 @@ def odebdf(model, y0, t):
 
 
 # -------------------------------------------------------------------------
+# Tweakable simulation parameters
+
+# Tweakable parameters
+t = np.arange(0, 1600, 0.05)
+setpoint = 100
+Kp = 0.025
+Ki = 0.00001
+Kd = 0
+
+# Uncomment the controller to use
+controller = RealPidController(setpoint, Kp, Ki, Kd)
+# controller = PidController(setpoint, Kp, Ki, Kd)
+# controller = ThresholdController(setpoint)
+
+
+# -------------------------------------------------------------------------
 # Simulate and plot
 
 # initial conditions.
@@ -119,13 +148,8 @@ yW = 20
 yM = 20
 y0 = [yW, yM]
 
-t = np.arange(0, 1600, 0.05)
-
-controller = RealPidController(100, 0.2, 0, 0)
-# controller = ThresholdController(100)
 model = functools.partial(system.model, controller)
 result, info_dict = odeint(model, y0, t, full_output=True)
-# result = odebdf(model, y0, t)
 
 plt.figure()
 
