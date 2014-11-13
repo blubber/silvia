@@ -1,15 +1,56 @@
 
+import ctypes
 import functools
 
 import numpy as np
 from scipy.integrate import odeint, ode
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 
 import system
 
 
 # -------------------------------------------------------------------------
 # Controller implementations
+
+class ControllerContext (ctypes.Structure):
+    _fields_ = [
+        ('setpoint', ctypes.c_float),
+        ('Kp', ctypes.c_float),
+        ('Ki', ctypes.c_float),
+        ('Kd', ctypes.c_float),
+        ('integral', ctypes.c_float),
+        ('previous_error', ctypes.c_float),
+    ]
+
+
+class RealPidController (object):
+
+    def __init__(self, setpoint, Kp, Ki, Kd):
+        self.lib = ctypes.cdll.LoadLibrary('libcontroller.so')
+        self.lib.controller_new.restype = ControllerContext
+        self.lib.controller_power.restype = ctypes.c_float
+        self._last_t = 0
+        self.power = []
+
+        self._ctx = self.lib.controller_new(
+            ctypes.c_float(setpoint),
+            ctypes.c_float(Kp),
+            ctypes.c_float(Ki),
+            ctypes.c_float(Kd))
+
+
+    def __call__ (self, t, T):
+        dt = int(1000 * (t - self._last_t))
+        self._last_t = t
+
+        ratio = self.lib.controller_power(ctypes.byref(self._ctx),
+            ctypes.c_long(dt), ctypes.c_float(T))
+
+        power = system.heater_power * min(1, max(0, ratio))
+        self.power.append((t, power))
+        return power
+
 
 
 class PidController (object):
@@ -26,6 +67,8 @@ class PidController (object):
     def __call__(self, t, T):
         dt = t - self._previous_t
         self._previous_t = t
+
+        print(dt)
 
         error = self.setpoint - T
         self._integral += error * dt
@@ -79,23 +122,26 @@ y0 = [yW, yM]
 
 t = np.arange(0, 1600, 0.05)
 
-controller = PidController(100, 0.025, 0.00001, 0)
-# controller = ThresholdController(100)
+controller = RealPidController(100, 0.2, 0, 0)
+#controller = ThresholdController(100)
 model = functools.partial(system.model, controller)
 result, info_dict = odeint(model, y0, t, full_output=True)
 # result = odebdf(model, y0, t)
 
 plt.figure()
 
-plt.plot(t, result[:, 1], label='Tm', color=(0, 0.5, 1), linewidth=2)
-plt.plot(t, result[:, 0], label='Tw', color=(1, 0.5, 0), linewidth=2)
+plt.plot(t, result[:, 1], label='Tm', color=(0, 0.5, 1), linewidth=1.5)
+plt.plot(t, result[:, 0], label='Tw', color=(1, 0.5, 0), linewidth=1.5)
 
-controller._integral = 0
-controller._previous_t = 0
-power = [controller(_t, _T) / system.heater_power * controller.setpoint for
-         _t, _T in zip(t, result[:, 1])]
-plt.plot(t, power, label='Power', color=(1, 0, 1), linewidth=2)
+_t, _p = zip(*controller.power)
+plt.plot(_t, [_ / system.heater_power * 100 for _ in _p],
+    label='Duty Cycle (%)', color=(1, 0, 1), linewidth=1.5)
 
 plt.xlabel('time')
-plt.legend(loc=0)
+
+font_properties = FontProperties()
+font_properties.set_size('x-small')
+legend = plt.legend(loc=0, prop=font_properties)
+plt.setp(legend.get_title(),fontsize='x-small')
+
 plt.savefig("imbabimbaresult_pid.png", dpi=600)
