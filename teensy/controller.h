@@ -14,6 +14,6 @@ typedef struct {
 
 ControllerContext controller_new (float setpoint, float Kp,
                                   float Ki, float Kd);
-float controller_power (ControllerContext *ctx, long dt, float T);
+float controller_power (ControllerContext *ctx, float dt, float T);
 
 #endif /* __CONTROLLER_H__ */

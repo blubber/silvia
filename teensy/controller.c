@@ -21,23 +21,22 @@ ControllerContext controller_new (float setpoint, float Kp,
 /** Run a single iteration of the controller.
  *
  * :param ctx: Pointer to an initialized ControllerContext.
- * :param dt: Number of ms since last loop.
+ * :param dt: Number of seconds since the last iteration.
  * :param T: The current temperature in degrees C.
  *
  * :returns: 0 <= retval <= 1.
  *
  */
-float controller_power (ControllerContext *ctx, long dt, float T) {
-    float dt_seconds = dt / 1000.0;
+float controller_power (ControllerContext *ctx, float dt, float T) {
     float error, derivative, output;
 
     error = ctx->setpoint - T;
-    ctx->integral += error * dt_seconds;
+    ctx->integral += error * dt;
 
-    if (dt_seconds == 0) {
+    if (dt == 0) {
         derivative = 0;
     } else {
-        derivative = (error - ctx->previous_error) / dt_seconds;
+        derivative = (error - ctx->previous_error) / dt;
     }
 
     output = ctx->Kp * error + 
