@@ -1,3 +1,7 @@
 venv
 *.pyo
 *.pyc
+*.o
+controller.o
+libcontroller.so
+
