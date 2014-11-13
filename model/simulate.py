@@ -168,4 +168,4 @@ font_properties.set_size('x-small')
 legend = plt.legend(loc=0, prop=font_properties)
 plt.setp(legend.get_title(), fontsize='x-small')
 
-plt.savefig("imbabimbaresult_pid.png", dpi=600)
+plt.savefig("imbabimbaresult_pid.png", dpi=150)
