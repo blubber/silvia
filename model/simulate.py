@@ -39,18 +39,17 @@ class RealPidController (object):
             ctypes.c_float(Ki),
             ctypes.c_float(Kd))
 
-
-    def __call__ (self, t, T):
+    def __call__(self, t, T):
         dt = int(1000 * (t - self._last_t))
         self._last_t = t
 
-        ratio = self.lib.controller_power(ctypes.byref(self._ctx),
+        ratio = self.lib.controller_power(
+            ctypes.byref(self._ctx),
             ctypes.c_long(dt), ctypes.c_float(T))
 
         power = system.heater_power * min(1, max(0, ratio))
         self.power.append((t, power))
         return power
-
 
 
 class PidController (object):
@@ -100,7 +99,7 @@ class ThresholdController (object):
 
 def odebdf(model, y0, t):
     result = np.zeros((len(t), len(y0)))
-    sys = lambda y, t: model(t, y) # bdf requires swapped arguments
+    sys = lambda y, t: model(t, y)  # bdf requires swapped arguments
     r = ode(sys).set_integrator('zvode', method='bdf')
     r.set_initial_value(y0, t[0])
     result[0] = y0
@@ -123,7 +122,7 @@ y0 = [yW, yM]
 t = np.arange(0, 1600, 0.05)
 
 controller = RealPidController(100, 0.2, 0, 0)
-#controller = ThresholdController(100)
+# controller = ThresholdController(100)
 model = functools.partial(system.model, controller)
 result, info_dict = odeint(model, y0, t, full_output=True)
 # result = odebdf(model, y0, t)
@@ -135,13 +134,13 @@ plt.plot(t, result[:, 0], label='Tw', color=(1, 0.5, 0), linewidth=1.5)
 
 _t, _p = zip(*controller.power)
 plt.plot(_t, [_ / system.heater_power * 100 for _ in _p],
-    label='Duty Cycle (%)', color=(1, 0, 1), linewidth=1.5)
+         label='Duty Cycle (%)', color=(1, 0, 1), linewidth=1.5)
 
 plt.xlabel('time')
 
 font_properties = FontProperties()
 font_properties.set_size('x-small')
 legend = plt.legend(loc=0, prop=font_properties)
-plt.setp(legend.get_title(),fontsize='x-small')
+plt.setp(legend.get_title(), fontsize='x-small')
 
 plt.savefig("imbabimbaresult_pid.png", dpi=600)
