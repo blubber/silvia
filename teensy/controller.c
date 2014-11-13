@@ -45,5 +45,5 @@ float controller_power (ControllerContext *ctx, long dt, float T) {
              ctx->Kd * derivative;
     ctx->previous_error = error;
 
-    return output < 0 ? 0 : (output > 1 ? 1 : output);
+    return output;
 }
