@@ -56,12 +56,14 @@ class RealPidController (Controller):
             ctypes.c_float(Kd))
 
     def heater_power(self, t, T):
-        dt = int(1000 * (t - self._last_t))
+        dt = t - self._last_t
         self._last_t = t
 
         ratio = self.lib.controller_power(
             ctypes.byref(self._ctx),
-            ctypes.c_long(dt), ctypes.c_float(T))
+            ctypes.c_float(dt), ctypes.c_float(T))
+
+        print(dt, ratio)
 
         return system.heater_power * min(1, max(0, ratio))
 
