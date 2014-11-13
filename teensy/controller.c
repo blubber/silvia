@@ -1,15 +1,5 @@
 
-
-
-typedef struct {
-    float     setpoint;
-    float     Kp;
-    float     Ki;
-    float     Kd;
-
-    float     integral;
-    float     previous_error;
-} ControllerContext;
+#include "controller.h"
 
 
 ControllerContext controller_new (float setpoint, float Kp,
