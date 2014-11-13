@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import ctypes
 import functools
@@ -43,7 +44,7 @@ class RealPidController (Controller):
 
     def __init__(self, setpoint, Kp, Ki, Kd):
         super().__init__(setpoint)
-        self.lib = ctypes.cdll.LoadLibrary('libcontroller.so')
+        self.lib = ctypes.cdll.LoadLibrary('./libcontroller.so')
         self.lib.controller_new.restype = ControllerContext
         self.lib.controller_power.restype = ctypes.c_float
         self._last_t = 0
