@@ -27,7 +27,7 @@ ControllerContext controller_new (float setpoint, float Kp,
  * :returns: 0 <= retval <= 1.
  *
  */
-float controller_power (ControllerContext *ctx, uint32_t dt, float T) {
+float controller_power (ControllerContext *ctx, long dt, float T) {
     float dt_seconds = dt / 1000.0;
     float error, derivative, output;
 
