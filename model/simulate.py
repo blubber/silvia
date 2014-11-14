@@ -29,6 +29,10 @@ class Controller (object):
         raise NotImplementedError()
 
     def __call__(self, t, T):
+        # At T == 140 the second bimetallic thermostat (T2) disconnects
+        if T >= 140:
+            return 0
+
         power = self.heater_power(t, T)
         self.power.append((t, power))
         return power
