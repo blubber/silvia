@@ -15,6 +15,11 @@ import system
 # Controller implementations
 
 class Controller (object):
+    ''' Temperature controller base class, takes care or storing the heater
+        output for later plotting.
+
+    :param setpoint: The desired temperature in degrees centigrade.
+    '''
 
     def __init__(self, setpoint):
         self.setpoint = setpoint
