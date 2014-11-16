@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import csv
 import ctypes
 import functools
+import os.path
 
 import numpy as np
 from scipy.integrate import odeint, ode
@@ -35,6 +37,9 @@ class Controller (object):
 
         power = self.heater_power(t, T)
         self.power.append((t, power))
+
+        if t >= 3600:
+            return 0
         return power
 
 
@@ -72,8 +77,6 @@ class RealPidController (Controller):
             ctypes.byref(self._ctx),
             ctypes.c_float(dt), ctypes.c_float(T))
 
-        print(dt, ratio)
-
         return system.heater_power * min(1, max(0, ratio))
 
 
@@ -91,8 +94,6 @@ class PidController (Controller):
     def heater_power(self, t, T):
         dt = t - self._previous_t
         self._previous_t = t
-
-        print(dt)
 
         error = self.setpoint - T
         self._integral += error * dt
@@ -140,15 +141,15 @@ def odebdf(model, y0, t):
 # Tweakable simulation parameters
 
 # Tweakable parameters
-t = np.arange(0, 1600, 0.05)
+t = np.arange(0, 7200, 0.05)
 setpoint = 100
-Kp = 0.025
-Ki = 0.00001
+Kp = 0.065
+Ki = 0
 Kd = 0
 
 # Uncomment the controller to use
-controller = RealPidController(setpoint, Kp, Ki, Kd)
-# controller = PidController(setpoint, Kp, Ki, Kd)
+# controller = RealPidController(setpoint, Kp, Ki, Kd)
+controller = PidController(setpoint, Kp, Ki, Kd)
 # controller = ThresholdController(setpoint)
 
 
@@ -165,12 +166,32 @@ result, info_dict = odeint(model, y0, t, full_output=True)
 
 plt.figure()
 
-plt.plot(t, result[:, 1], label='Tm', color=(0, 0.5, 1), linewidth=1.5)
-plt.plot(t, result[:, 0], label='Tw', color=(1, 0.5, 0), linewidth=1.5)
+plt.plot(t, result[:, 1], label='Tm', color=(0, 0.5, 1), linewidth=1)
+# plt.plot(t, result[:, 0], label='Tw', color=(1, 0.5, 0), linewidth=1.5)
 
-_t, _p = zip(*controller.power)
-plt.plot(_t, [_ / system.heater_power * 100 for _ in _p],
-         label='Duty Cycle (%)', color=(1, 0, 1), linewidth=1.5)
+# _t, _p = zip(*controller.power)
+# plt.plot(_t, [_ / system.heater_power * 100 for _ in _p],
+#          label='Duty Cycle (%)', color=(1, 0, 1), linewidth=1.5)
+
+with open(os.path.expanduser(('~/Dropbox/silvia_pid_upgrade/data/eerste run/'
+                              'teensy-output_Kp=0.065_Ki=0_Kd=0_2014-11-16_14,04.log'))) as fp:
+    reader = csv.reader(fp, delimiter='\t')
+    params = dict(_.split('=') for _ in next(reader)[1:])
+    headers = next(reader)
+    index_t = headers.index('t')
+    index_T = headers.index('T')
+
+    t_, T_ = zip(*((row[index_t], row[index_T]) for row in reader))
+    t = [float(_) / 1000 for _ in t_]
+    T = map(float, T_)
+
+    index= [_ >= 7200 for _ in t].index(True)
+    t = t[:index]
+    T = list(T)[:index]
+
+    plt.plot(t, list(T), label='Tm (Kp={})'.format(params['Kp']),
+             color=(1, 0, 0), linewidth=1)
+
 
 plt.xlabel('time')
 
