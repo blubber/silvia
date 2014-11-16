@@ -11,7 +11,7 @@ import math
 # System Parameters
 
 #: Heat capacity of the water inside the boiler.
-Cw = 0.23 * 4176.8
+Cw = 0.33 * 4176.8
 
 #: Radius of the boiler (in m).
 r = (7.7/2.0) * 0.01
