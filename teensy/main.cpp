@@ -2,7 +2,9 @@
 #include "WProgram.h"
 #include "Adafruit-MAX31855-library/Adafruit_MAX31855.h"
 
-#include "controller.h"
+extern "C" {
+    #include "controller.h"
+}
 #include "version.h"
 
 
@@ -17,7 +19,7 @@
 
 // --------------------------------------------------------------------------
 // PID controller parameters.
-#define KP               0.035
+#define KP               0.065
 #define KI               0
 #define KD               0
 
