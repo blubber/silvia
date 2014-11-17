@@ -1,3 +1,3 @@
 [submodule "teensy/Adafruit-MAX31855-library"]
-	path = teensy/Adafruit-MAX31855-library
+	path = teensy/src/Adafruit-MAX31855-library
 	url = https://github.com/adafruit/Adafruit-MAX31855-library
