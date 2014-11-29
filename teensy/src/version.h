@@ -2,6 +2,6 @@
 #define __VERSION_H__ 1
 
 // Version is bumped by the Makefile
-#define VERSION 3
+#define VERSION 4
 
 #endif
