@@ -2,99 +2,64 @@
 #include "WProgram.h"
 #include "Adafruit-MAX31855-library/Adafruit_MAX31855.h"
 
-extern "C" {
-    #include "controller.h"
-}
+#include "Loop.h"
+#include "Controller.h"
 #include "version.h"
+#include "config.h"
 
 
-// --------------------------------------------------------------------------
-// The setpoint in degrees Celsius
-#define SETPOINT         100
+IntervalTimer timer;
+volatile int tick = 0;
 
 
-#define CYCLE            500
-
-
-
-// --------------------------------------------------------------------------
-// PID controller parameters.
-#define KP               0.065
-#define KI               0
-#define KD               0
-
-
-// --------------------------------------------------------------------------
-// Pins used by the thermocouple
-#define THERMO_DO        21
-#define THERMO_CS        20
-#define THERMO_CLK       19
-
-
-// --------------------------------------------------------------------------
-// Pin used to control the heating element
-#define HEATER_PIN       0
-
-
-  
-double read_sensor (Adafruit_MAX31855 thermocouple) {
-    return thermocouple.readCelsius();
+void set_tick () {
+    __disable_irq();
+    tick = 1;
+    __enable_irq();
 }
+
+
+class AdaFruitSensor: public ITemperatureSensor {
+  public:
+    AdaFruitSensor(Adafruit_MAX31855 _sensor): sensor(_sensor) {};
+    double readTemperature () { return sensor.readCelsius(); };
+
+  private:
+    Adafruit_MAX31855 &sensor;
+};
+
 
 extern "C" int main(void) {
-    uint32_t last_millis = 0, now, cycle, sleep;
-    float    output, T, dt;
-    int      heating = 1, i = 0;
+    PidController     controller(SETPOINT, KP, KI, KD);
+    AdaFruitSensor    sensor(Adafruit_MAX31855(THERMO_CLK, THERMO_CS, THERMO_DO));
+    Loop              loop(Serial, controller, sensor, CYCLE);
+    int               tick_ = 0;
 
-    Adafruit_MAX31855 thermocouple(THERMO_CLK, THERMO_CS, THERMO_DO);
-    ControllerContext ctx = controller_new(SETPOINT, KP, KI, KP);
-
-    Serial.begin(9600);
+    // Configure heater, pump and led pin
     pinMode(HEATER_PIN, OUTPUT);
+    pinMode(PUMP_PIN, OUTPUT);
     pinMode(13, OUTPUT);
 
     digitalWrite(HEATER_PIN, LOW);
-    digitalWrite(13, LOW);
-    
+    digitalWrite(PUMP_PIN, LOW);
+    digitalWrite(13, HIGH);
+
+    // Init serial and delay to allow programming.
+    Serial.begin(9600);
+    delay(2500);
+
+    timer.begin(set_tick, 1000);
+
     for (;;) {
-        now = millis();
+        __disable_irq();
+        tick_ = tick;
+        tick = 0;
+        __enable_irq();
 
-        if (now >= (3600 * 1000)) {
-            heating = 0;
+        if (tick_ == 1) {
+            loop.once(millis());
+            digitalWrite(HEATER_PIN, loop.getHeaterOn());
+            digitalWrite(PUMP_PIN, loop.getPumpOn());
         }
-
-        dt = (float)now - (float)last_millis;
-        last_millis = now;
-        T = read_sensor(thermocouple);
-        output = controller_power(&ctx, dt, T);
-        cycle = (uint32_t)(CYCLE * (output > 1 ? 1 : (output < 0 ? 0 : output)));
-
-        if (++i == 10) {
-            i = 0;
-            Serial.print(":Kp=");        Serial.print(KP);
-            Serial.print("Ki=");        Serial.print(KI);
-            Serial.print(" Kd=");       Serial.print(KD);
-            Serial.print(" setpoint="); Serial.print(SETPOINT);
-            Serial.print(" cycle=");    Serial.println(CYCLE);
-
-            Serial.println(":On\tT\tOut\tdt\tCyc\tms");
-        }
-
-        Serial.print(heating); Serial.print("\t");
-        Serial.print(T);       Serial.print("\t");
-        Serial.print(output);  Serial.print("\t");
-        Serial.print(dt);      Serial.print("\t");
-        Serial.print(cycle);   Serial.print("\t");
-        Serial.println(now);        
-
-        if (heating == 1) {
-            digitalWrite(HEATER_PIN, HIGH);
-            digitalWrite(13, HIGH);
-        }
-        delay(cycle);
-
-        digitalWrite(HEATER_PIN, LOW);
-        digitalWrite(13, LOW);
-        delay(CYCLE - cycle);
     }
 }
